@@ -21,12 +21,15 @@ import {
 // ----------------------
 // Buffers
 // ----------------------
-const influxBuffer = new MessageBuffer<RuuviData>(config.bufferSize, influxWriteBatch);
-const mariaBuffer = new MessageBuffer<RuuviData>(config.mariaBufferSize, mariaWriteBatch);
+const influxBuffer =
+  config.storageBackend !== 'mariadb' ? new MessageBuffer<RuuviData>(config.bufferSize, influxWriteBatch) : null;
+
+const mariaBuffer =
+  config.storageBackend !== 'influxdb' ? new MessageBuffer<RuuviData>(config.mariaBufferSize, mariaWriteBatch) : null;
 
 setInterval(() => {
-  influxBuffer.flush();
-  mariaBuffer.flush();
+  influxBuffer?.flush();
+  mariaBuffer?.flush();
 }, config.flushInterval);
 
 // ----------------------
@@ -131,9 +134,8 @@ export function startMqtt() {
         sample.batteryPercentage = batteryPercentage(sample.batteryVoltage);
       }
 
-      // Push to both buffers (same object, no deep copy required)
-      influxBuffer.push(sample);
-      mariaBuffer.push(sample);
+      influxBuffer?.push(sample);
+      mariaBuffer?.push(sample);
     } catch (err) {
       logger.warn({ err, topic }, 'MQTT message processing failed');
     }

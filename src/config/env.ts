@@ -27,6 +27,7 @@ export const config = {
     key: process.env.MQTT_KEY ? fs.readFileSync(process.env.MQTT_KEY) : undefined,
     rejectUnauthorized: process.env.MQTT_REJECT_UNAUTHORIZED === 'true',
   },
+  storageBackend: (process.env.STORAGE_BACKEND ?? 'both') as 'influxdb' | 'mariadb' | 'both',
   influx: {
     url: process.env.INFLUX_URL!,
     org: process.env.INFLUX_ORG!,
