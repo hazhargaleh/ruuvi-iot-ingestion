@@ -1,4 +1,5 @@
 export class RuuviData {
+  // Raw RuuviTag metrics
   temperature?: number;
   humidity?: number;
   pressure?: number;
@@ -10,6 +11,16 @@ export class RuuviData {
   movementCounter?: number;
   measurementSequenceNumber?: number;
   dataFormat?: number;
+
+  // Calculated derived fields
+  absoluteHumidity?: number;
+  equilibriumVaporPressure?: number;
+  airDensity?: number;
+  accelerationTotal?: number;
+  accelerationAngleFromX?: number;
+  accelerationAngleFromY?: number;
+  accelerationAngleFromZ?: number;
+
   constructor(
     public coordinates: string,
     public deviceId: string,
@@ -19,6 +30,6 @@ export class RuuviData {
     public providerId: string,
     public rawData: string,
     public rssi: number | undefined,
-    public timestamp: number
+    public timestamp: number,
   ) {}
 }

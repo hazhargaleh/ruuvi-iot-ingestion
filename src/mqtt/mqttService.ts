@@ -6,6 +6,13 @@ import { RuuviData } from "../ruuvi/ruuviData.js";
 import { decodeRuuvi } from "../ruuvi/ruuviDecoder.js";
 import { writeBatch } from "../influx/influxService.js";
 import ruuviSchema from "../ruuvi/ruuvi_mqtt_data_with_timestamps.schema.js";
+import {
+  absoluteHumidity,
+  accelerationAngles,
+  accelerationTotal,
+  airDensity,
+  equilibriumVaporPressure,
+} from '../ruuvi/ruuviCalculations.js';
 // ----------------------
 // Optimisation Ruuvi BLE
 // ----------------------
@@ -85,6 +92,28 @@ export function startMqtt() {
         if (!decoded) return;
 
         Object.assign(sample, decoded);
+        // Calculation of derived fields
+        const { temperature, humidity, pressure, accelerationX, accelerationY, accelerationZ } = sample;
+
+        if (temperature !== undefined) {
+          sample.equilibriumVaporPressure = equilibriumVaporPressure(temperature);
+
+          if (humidity !== undefined) {
+            sample.absoluteHumidity = absoluteHumidity(temperature, humidity);
+
+            if (pressure !== undefined) {
+              sample.airDensity = airDensity(temperature, pressure, humidity);
+            }
+          }
+        }
+
+        if (accelerationX !== undefined && accelerationY !== undefined && accelerationZ !== undefined) {
+          sample.accelerationTotal = accelerationTotal(accelerationX, accelerationY, accelerationZ);
+          const angles = accelerationAngles(accelerationX, accelerationY, accelerationZ);
+          sample.accelerationAngleFromX = angles.angleFromX;
+          sample.accelerationAngleFromY = angles.angleFromY;
+          sample.accelerationAngleFromZ = angles.angleFromZ;
+        }
       }
       // Push to Influx via Buffer
       influxBuffer.push(sample);
