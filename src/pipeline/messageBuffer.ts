@@ -3,7 +3,7 @@ import { Gauge } from 'prom-client';
 const bufferSize = new Gauge({
   name: 'ruuvi_buffer_size',
   help: 'Current buffer size',
-  labelNames: ['type']
+  labelNames: ['type'] // Influx or MariaDB buffer size
 });
 
 export class MessageBuffer<T> {

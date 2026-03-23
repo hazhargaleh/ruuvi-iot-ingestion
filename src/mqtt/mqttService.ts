@@ -22,14 +22,17 @@ import {
 // ----------------------
 // Metrics
 // ----------------------
+// MQTT connection status metrics
 const mqttConnected = new Gauge({
   name: 'ruuvi_mqtt_connected',
   help: 'MQTT connection status (1=connected, 0=disconnected)',
 });
+//  Counters for processed messages
 const mqttMessagesProcessed = new Counter({
   name: 'ruuvi_mqtt_messages_processed_total',
   help: 'Total MQTT messages processed successfully',
 });
+// Counters for invalid messages
 const mqttMessagesInvalid = new Counter({
   name: 'ruuvi_mqtt_messages_invalid_total',
   help: 'Total invalid MQTT messages',
