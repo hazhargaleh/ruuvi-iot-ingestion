@@ -192,6 +192,18 @@ npm start
 ```
 ---
 
+## Tests
+Run th test suite with Jest (configuration with ES modules):
+24 unit tests covering 
+- RuuviTag calculations (pressure, humidity, angles, etc.)
+- Message buffer behavior
+Parameterized exhaustive tests
+
+```bash
+npm test  # Run tests
+npm run test:watch # Watch mode for dev 
+npm run test:converage # Coverage report
+```
 ## Data pipeline
 
 Each MQTT message goes through the following stages before being written to the database(s):
