@@ -1,7 +1,4 @@
 {
-  "fw_ver": "v1.16.2",
-  "nrf52_fw_ver": "v2.0.0",
-  "gw_mac": "C8:25:2D:8E:9C:2C",
   "storage": {
     "storage_ready": true,
     "http_cli_cert": false,
@@ -30,9 +27,9 @@
   "eth_gw": "",
   "eth_dns1": "",
   "eth_dns2": "",
-  "remote_cfg_use": false,
-  "remote_cfg_url": "",
-  "remote_cfg_auth_type": "none",
+  "remote_cfg_use": true,
+  "remote_cfg_url": "https://your-cfg-url.com/ruuvi-gw-cfg",
+  "remote_cfg_auth_type": "basic",
   "remote_cfg_use_ssl_client_cert": false,
   "remote_cfg_use_ssl_server_cert": false,
   "remote_cfg_refresh_interval_minutes": 0,

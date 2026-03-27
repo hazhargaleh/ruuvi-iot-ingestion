@@ -2,13 +2,25 @@ import fs from "fs";
 import dotenv from "dotenv";
 import { z } from "zod";
 dotenv.config({ path: "config/.env" });
-
+function normalizeMac(mac?: string): string | undefined {
+  if (!mac) return undefined;
+  return mac.toUpperCase().replace(/[^A-F0-9]/g, '');
+}
 function parseMacMap(envVar: string | undefined): Record<string, string> {
   if (!envVar) return {};
   try {
     const parsed = JSON.parse(envVar);
     if (typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return parsed as Record<string, string>;
+    const normalized: Record<string, string> = {};
+    for (const [mac, name] of Object.entries(parsed)) {
+      const key = normalizeMac(mac);
+      if (!key) continue;
+      if (typeof name === 'string') {
+        normalized[key] = name;
+      }
+    }
+
+    return normalized;
   } catch {
     console.warn(`[config] Failed to parse MAC map: ${envVar}`);
     return {};

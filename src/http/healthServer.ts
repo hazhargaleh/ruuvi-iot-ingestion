@@ -1,111 +1,124 @@
-import Fastify from "fastify";
-import rateLimit from "@fastify/rate-limit";
-import { config } from "../config/env.js";
-import { register, collectDefaultMetrics } from "prom-client";
+import Fastify, { FastifyRequest, FastifyReply } from 'fastify';
+import rateLimit from '@fastify/rate-limit';
+import { config } from '../config/env.js';
+import { register, collectDefaultMetrics } from 'prom-client';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '../logger/logger.js';
 import { GatewayConfigurationSchema } from '../ruuvi/gatewayConfigurationSchema.js';
+
 const GW_CONFIG_DIR = path.resolve('config/gw_cfg');
+
+function normalizeMac(mac?: string): string | undefined {
+  if (!mac) return undefined;
+  return mac.toUpperCase().replace(/[^A-F0-9]/g, '');
+}
+
+function safeJsonParse(raw: string) {
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+function validateGwCfgAuth(authHeader: string): boolean {
+  if (!authHeader) return false;
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7) === config.gwCfg.bearerToken;
+  }
+  if (authHeader.startsWith('Basic ')) {
+    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');
+    const [user, pass] = decoded.split(':');
+    return user === config.gwCfg.user && pass === config.gwCfg.password;
+  }
+  return false;
+}
+
+async function handleGwCfg(req: FastifyRequest, reply: FastifyReply) {
+  if (!validateGwCfgAuth(req.headers['authorization'] ?? '')) {
+    reply.header('WWW-Authenticate', 'Basic realm="Ruuvi Gateway Config"');
+    return reply.code(401).send({ error: 'Unauthorized' });
+  }
+
+  // MAC resolution — from the header or from the name of the requested file
+  const headerMac = normalizeMac((req.headers['ruuvi_gw_mac'] as string) || (req.headers['ruuvi-gw-mac'] as string));
+
+  // Extract the MAC from the URL if the gateway is /ruuvi-gw-cfg/F32DEFE72E78.json
+  const urlSegment = (req.params as Record<string, string>)['*'] ?? '';
+  const urlMac = normalizeMac(urlSegment.replace('.json', '').replace('gw_cfg', ''));
+
+  const mac = headerMac ?? urlMac;
+
+  logger.info({ mac, headerMac, urlMac, url: req.url }, 'GW cfg request');
+
+  // File resolution: name → MAC → fallback
+  let cfgPath = path.join(GW_CONFIG_DIR, 'gw_cfg.json');
+
+  if (mac) {
+    const gatewayName = config.gatewayNames[mac];
+
+    if (gatewayName) {
+      const namePath = path.join(GW_CONFIG_DIR, `${gatewayName.replace(/\s+/g, '-').toLowerCase()}.json`);
+      if (fs.existsSync(namePath)) {
+        cfgPath = namePath;
+        logger.info({ mac, cfgPath }, 'Config resolved by name');
+      }
+    }
+
+    if (cfgPath === path.join(GW_CONFIG_DIR, 'gw_cfg.json')) {
+      const macPath = path.join(GW_CONFIG_DIR, `${mac}.json`);
+      if (fs.existsSync(macPath)) {
+        cfgPath = macPath;
+        logger.info({ mac, cfgPath }, 'Config resolved by MAC');
+      }
+    }
+  }
+
+  if (!fs.existsSync(cfgPath)) {
+    logger.error({ cfgPath }, 'Config file not found');
+    return reply.code(404).send({ error: 'Config not found' });
+  }
+
+  const raw = fs.readFileSync(cfgPath, 'utf-8');
+  const parsed = safeJsonParse(raw);
+
+  if (!parsed) {
+    logger.error({ cfgPath }, 'Invalid JSON in config file');
+    return reply.code(500).send({ error: 'Invalid JSON' });
+  }
+
+  const validation = GatewayConfigurationSchema.safeParse(parsed);
+  if (!validation.success) {
+    logger.error({ cfgPath, errors: validation.error.errors }, 'Schema validation failed');
+    return reply.code(500).send({ error: 'Invalid config schema' });
+  }
+
+  reply.header('Content-Type', 'application/json');
+  return reply.send(raw);
+}
+
 export async function startHttpServer() {
   const fastify = Fastify();
-  // Protection against brute-force or DoS attacks
-  await fastify.register(rateLimit, {
-    max: 100, // 100 requests
-    timeWindow: '1 minute',
-  });
-  // Authentication on all routes except /ruuvi-gw-cfg, which uses Basic/Bearer
+
+  await fastify.register(rateLimit, { max: 100, timeWindow: '1 minute' });
+
   fastify.addHook('onRequest', async (req, reply) => {
-    if (req.url?.startsWith('/ruuvi-gw-cfg')) return; // separate authorization below
+    if (req.url?.startsWith('/ruuvi-gw-cfg')) return;
     if (req.headers['x-api-key'] !== config.httpApiKey) {
       reply.code(401).send();
     }
   });
+
   collectDefaultMetrics();
-  fastify.get('/health', async () => {
-    return { status: 'ok' };
-  });
+
+  fastify.get('/health', async () => ({ status: 'ok' }));
+
   fastify.get('/metrics', async (_, reply) => {
     reply.header('Content-Type', register.contentType);
     return register.metrics();
   });
 
-  // Automatic configuration endpoint for Ruuvi Gateways
-  fastify.get('/ruuvi-gw-cfg', async (req, reply) => {
-    // Basic authentication check (username/password from .env)
-    const authHeader = req.headers['authorization'] ?? '';
-    const valid = validateGwCfgAuth(authHeader);
-    if (!valid) {
-      reply.header('WWW-Authenticate', 'Basic realm="Ruuvi Gateway Config"');
-      return reply.code(401).send({ error: 'Unauthorized' });
-    }
+  // Both routes point to the same handler
+  fastify.get('/ruuvi-gw-cfg', handleGwCfg);
+  fastify.get('/ruuvi-gw-cfg/*', handleGwCfg);
 
-    // Resolving the configuration file based on the gateway’s MAC address
-    const originalGwMac = (req.headers['ruuvi_gw_mac'] as string | undefined)?.toUpperCase().trim();
-    const gwMac = originalGwMac?.replace(/[^A-F0-9:]/g, '');
-
-    let cfgPath = path.join(GW_CONFIG_DIR, 'gw_cfg.json'); // fallback
-
-    if (originalGwMac) {
-      // First, try to find config by gateway name from GATEWAY_NAMES
-      const gatewayName = config.gatewayNames[originalGwMac];
-      if (gatewayName) {
-        const nameNormalized = gatewayName.replace(/ /g, '-').toLowerCase();
-        const namePath = path.join(GW_CONFIG_DIR, `${nameNormalized}.json`);
-        if (fs.existsSync(namePath)) {
-          cfgPath = namePath;
-          logger.info({ originalGwMac, gatewayName }, 'Gateway config: serving config by name');
-        } else {
-          logger.warn({ originalGwMac, gatewayName, nameNormalized }, 'Gateway config: name-based config not found');
-        }
-      }
-
-      // If not found by name, try MAC-based
-      if (cfgPath === path.join(GW_CONFIG_DIR, 'gw_cfg.json')) {
-        const specificPath = path.join(GW_CONFIG_DIR, `${gwMac}.json`);
-        if (fs.existsSync(specificPath)) {
-          cfgPath = specificPath;
-          logger.info({ gwMac }, 'Gateway config: serving MAC-based config');
-        } else {
-          logger.info({ gwMac }, 'Gateway config: falling back to default');
-        }
-      }
-    }
-
-    try {
-      const raw = fs.readFileSync(cfgPath, 'utf-8');
-      const configData = JSON.parse(raw);
-      const validationResult = GatewayConfigurationSchema.safeParse(configData);
-      if (!validationResult.success) {
-        logger.error({ cfgPath, errors: validationResult.error.errors }, 'Gateway config validation failed');
-        return reply.code(500).send({ error: 'Invalid config' });
-      }
-      reply.header('Content-Type', 'application/json');
-      return reply.send(raw);
-    } catch (err) {
-      logger.error({ err, cfgPath }, 'Gateway config file read failed');
-      return reply.code(500).send({ error: 'Config not found' });
-    }
-  });
   await fastify.listen({ port: config.httpPort, host: '0.0.0.0' });
   logger.info(`HTTP server listening on :${config.httpPort}`);
-}
-
-function validateGwCfgAuth(authHeader: string): boolean {
-  if (!authHeader) return false;
-
-  // Bearer token
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    return token === config.gwCfg.bearerToken;
-  }
-
-  // Basic auth
-  if (authHeader.startsWith('Basic ')) {
-    const b64 = authHeader.slice(6);
-    const decoded = Buffer.from(b64, 'base64').toString('utf-8');
-    const [user, pass] = decoded.split(':');
-    return user === config.gwCfg.user && pass === config.gwCfg.password;
-  }
-  return false;
 }
