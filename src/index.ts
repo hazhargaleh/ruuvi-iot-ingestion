@@ -3,13 +3,12 @@ import { startMqtt } from './mqtt/mqttService.js';
 import { logger } from './logger/logger.js';
 import { initMariaSchema } from './maria-db/mariaDbService.js';
 import { config } from './config/env.js';
-import { initDownsampleSchema, startMariaMaintenanceTasks } from './maria-db/mariaDbRetention.js';
+import { startMariaMaintenanceTasks } from './maria-db/mariaDbRetention.js';
 async function main() {
   if (config.storageBackend !== 'influxdb') {
     await initMariaSchema();
     // Maintenance schedule and tasks only if at least one option is enabled
     if (config.mariaRetention.downsampleEnabled || config.mariaRetention.enabled) {
-      await initDownsampleSchema();
       startMariaMaintenanceTasks();
     }
   }
