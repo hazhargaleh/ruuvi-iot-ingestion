@@ -217,12 +217,11 @@ export function startMariaMaintenanceTasks(): void {
     if (config.mariaRetention.enabled) await runRetention();
     logger.info('MariaDB maintenance tasks done');
   };
-
-  run(); // first immediate execution
   setInterval(run, intervalMs);
 
   logger.info(
     { intervalHours: config.mariaRetention.maintenanceIntervalHours },
-    'MariaDB maintenance scheduler started',
+    'MariaDB maintenance scheduler started - first run in ' +
+    config.mariaRetention.maintenanceIntervalHours + 'h',
   );
 }
