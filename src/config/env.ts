@@ -98,10 +98,10 @@ export const config = configSchema.parse({
   },
   mariaRetention: {
     enabled: process.env.MARIA_RETENTION_ENABLED === 'true',
-    retentionDays: Number(process.env.MARIA_RETENTION_DAYS ?? 30),
+    retentionDays: Number(process.env.MARIA_RETENTION_DAYS ?? 730),
     downsampleEnabled: process.env.MARIA_DOWNSAMPLE_ENABLED === 'true',
-    downsampleRetentionDays: Number(process.env.MARIA_DOWNSAMPLE_RETENTION_DAYS ?? 365),
-    downsampleDeleteRaw: process.env.MARIA_DOWNSAMPLE_DELETE_RAW === 'true',
+    downsampleRetentionDays: Number(process.env.MARIA_DOWNSAMPLE_RETENTION_DAYS ?? 1095),
+    downsampleDeleteRaw: process.env.MARIA_DOWNSAMPLE_DELETE_RAW === 'false',
     maintenanceIntervalHours: Number(process.env.MARIA_MAINTENANCE_INTERVAL_HOURS ?? 6),
   },
   mariaBufferSize: Number(process.env.MARIA_BUFFER_SIZE ?? 100),

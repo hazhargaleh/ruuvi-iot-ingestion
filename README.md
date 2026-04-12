@@ -205,15 +205,34 @@ If a MAC address is not listed, the raw MAC is used as a fallback.
 
 ### MariaDB retention & downsampling
 
-| Variable | Default | Description |
-|---|---|---|
-| `MARIA_RETENTION_ENABLED` | `true` | Enable automatic deletion of old raw data |
-| `MARIA_RETENTION_DAYS` | `60` | Retain raw data for this many days |
-| `MARIA_DOWNSAMPLE_ENABLED` | `true` | Enable hourly aggregation |
-| `MARIA_DOWNSAMPLE_RETENTION_DAYS` | `365` | Retain hourly data for this many days (`0` = forever) |
-| `MARIA_DOWNSAMPLE_DELETE_RAW` | `true` | Delete raw rows once they have been aggregated |
-| `MARIA_MAINTENANCE_INTERVAL_HOURS` | `6` | How often to run maintenance tasks (hours) |
+| Variable | Default | Description                                   |
+|---|---------|-----------------------------------------------|
+| `MARIA_RETENTION_ENABLED` | `true`  | Enable automatic deletion of old raw data from `measurements` |
+| `MARIA_RETENTION_DAYS` | `730`   | Retain raw data for this many days - rows older than this are deleted |
+| `MARIA_DOWNSAMPLE_ENABLED` | `true`  | Enable hourly aggregation into `measurements_hourly` |
+| `MARIA_DOWNSAMPLE_RETENTION_DAYS` | `1095`  | Retain hourly data for this many days (`0` = keep forever) |
+| `MARIA_DOWNSAMPLE_DELETE_RAW` | `false` | Delete raw rows from `measurements` once they have been aggregated |
+| `MARIA_MAINTENANCE_INTERVAL_HOURS` | `6` | How often maintenance tasks run (hours) — no immediate run on startup |
 
+#### How retention works
+Each variable controls a different table independently.
+
+`MARIA_RETENTION_DAYS` applies to the `measurements` table (raw data). Any row whose `ts` timestamp is older than the configured number of days is deleted. With `MARIA_RETENTION_DAYS=730` and today being 2026-04-12, the cutoff is 2024-04-12 — rows from 2024-04-11 and earlier are removed, keeping exactly two years of raw data.
+
+`MARIA_DOWNSAMPLE_RETENTION_DAYS` applies to the `measurements_hourly` table. With `MARIA_DOWNSAMPLE_RETENTION_DAYS=1095` the cutoff is 2023-04-12 — hourly rows from 2023-04-11 and earlier are removed, keeping three years of aggregated history.
+
+```
+Today: 2026-04-12
+│
+measurements_hourly  ◄──────────────── 3 years (1095 days) ────────────────►
+│  kept from 2023-04-12 onwards
+│  deleted before 2023-04-12
+│
+measurements         ◄────── 2 years (730 days) ──────►
+│  kept from 2024-04-12 onwards
+│  deleted before 2024-04-12
+```
+Deletions in `measurements` are capped at 5 000 rows per maintenance cycle to avoid locking the table. If a large backlog has accumulated, several cycles will be needed to fully catch up.
 ### General
 
 | Variable | Default | Description |
