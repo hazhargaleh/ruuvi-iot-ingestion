@@ -34,6 +34,7 @@ const configSchema = z.object({
     cert: z.instanceof(Buffer).optional(),
     key: z.instanceof(Buffer).optional(),
     rejectUnauthorized: z.boolean(),
+    timestampOffsetSeconds: z.number(),
   }),
   storageBackend: z.enum(['influxdb', 'mariadb', 'both']),
   influx: z.object({
@@ -84,6 +85,7 @@ export const config = configSchema.parse({
     cert: process.env.MQTT_CERT ? fs.readFileSync(process.env.MQTT_CERT) : undefined,
     key: process.env.MQTT_KEY ? fs.readFileSync(process.env.MQTT_KEY) : undefined,
     rejectUnauthorized: toBoolean(process.env.MQTT_REJECT_UNAUTHORIZED),
+    timestampOffsetSeconds: Number(process.env.MQTT_TIMESTAMP_OFFSET_SECONDS ?? 0),
   },
   storageBackend: (process.env.STORAGE_BACKEND ?? 'both') as 'influxdb' | 'mariadb' | 'both',
   influx: {

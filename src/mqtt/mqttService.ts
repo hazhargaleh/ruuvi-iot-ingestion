@@ -90,7 +90,7 @@ export function startMqtt() {
       const tagMac = parts[2].replace(/[^A-F0-9:]/gi, '');
       const gatewayName = config.gatewayNames[gatewayMac] ?? gatewayMac;
       const tagName = config.tagNames[tagMac] ?? tagMac;
-      const timestamp = Number(data.ts ?? data.gwts) * 1000;
+      const timestamp = (Number(data.ts ?? data.gwts) + config.mqtt.timestampOffsetSeconds) * 1000;
 
       // ── Construction RuuviData depuis les champs décodés du gateway ──
       const sample = new RuuviData(
