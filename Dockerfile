@@ -7,14 +7,14 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY tsconfig.json ./
 COPY src ./src
 
 # Build application
-RUN npm run build
+RUN pnpm run build
 
 # Runtime stage
 FROM node:20-alpine
@@ -28,7 +28,7 @@ RUN apk add --no-cache dumb-init
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN pnpm install --frozen-lockfile --prod
 
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist

@@ -33,7 +33,6 @@ jest-report/
 *.lcov
 
 # Cache
-.npm/
 .eslintcache
 .prettiercache
 .cache/

@@ -79,7 +79,7 @@ It also serves gateway configuration files over HTTPS, allowing each Ruuvi Gatew
 ## Requirements
 
 - Node.js >= 24
-- npm >= 9
+- pnpm >= 10
 - One or more [Ruuvi Gateways](https://ruuvi.com/gateway/) with MQTT support
 - InfluxDB v2 (if using InfluxDB storage)
 - MariaDB >= 10.6 (if using MariaDB storage)
@@ -93,7 +93,7 @@ It also serves gateway configuration files over HTTPS, allowing each Ruuvi Gatew
 ```bash
 git clone https://github.com/Ecodev/ruuvi-iot-ingestion.git
 cd ruuvi-iot-ingestion
-npm install
+pnpm install
 ```
 
 2. Create the `.env` file from the example:
@@ -249,7 +249,7 @@ Deletions in `measurements` are capped at 5 000 rows per maintenance cycle to av
 Run with automatic reload on file changes:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### Production
@@ -257,16 +257,16 @@ npm run dev
 Compile TypeScript and start the service:
 
 ```bash
-npm run build
-npm start
+pnpm run build
+pnpm start
 ```
 
 ### Linting & formatting
 
 ```bash
-npm run lint       # ESLint
-npm run format     # Prettier
-npm run typecheck  # TypeScript (no emit)
+pnpm run lint       # ESLint
+pnpm run format     # Prettier
+pnpm run typecheck  # TypeScript (no emit)
 ```
 
 ---
@@ -277,13 +277,13 @@ The project uses [Jest](https://jestjs.io/) with `ts-jest`.
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Watch mode — re-run on file changes
-npm run test:watch
+pnpm run test:watch
 
 # With coverage report
-npm run test:coverage
+pnpm run test:coverage
 ```
 
 ### Test coverage
