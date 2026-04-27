@@ -248,3 +248,8 @@ FROM measurements_calculated mc
                                                                    FROM devices
                                                                    WHERE id = latest.device_fk) AND
                                                    mc.ts = latest.max_ts;
+
+CREATE OR REPLACE VIEW measurements_hourly_calculated AS
+    SELECT mh.* , d.device_id, d.device_name, d.gateway_id, d.gateway_name
+    FROM measurements_hourly mh
+             INNER JOIN devices d ON d.id = mh.device_fk;
